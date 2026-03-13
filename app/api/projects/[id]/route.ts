@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { projects } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { getGithubClient, deleteWebhook } from "@/lib/github";
 
 export async function DELETE(
   _req: Request,
@@ -20,6 +21,23 @@ export async function DELETE(
 
   if (!project) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Clean up GitHub webhook if registered
+  if (project.githubWebhookId) {
+    const octokit = await getGithubClient(session.user.id);
+    if (octokit) {
+      try {
+        await deleteWebhook(
+          octokit,
+          project.githubOwner,
+          project.githubRepo,
+          Number(project.githubWebhookId)
+        );
+      } catch {
+        // Non-fatal: continue with deletion even if webhook cleanup fails
+      }
+    }
   }
 
   await db

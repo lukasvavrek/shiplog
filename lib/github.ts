@@ -2,6 +2,7 @@ import { Octokit } from "@octokit/rest";
 import { db } from "@/lib/db";
 import { accounts } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
+import { randomBytes } from "crypto";
 
 export async function getGithubClient(userId: string): Promise<Octokit | null> {
   const account = await db.query.accounts.findFirst({
@@ -125,4 +126,39 @@ export async function fetchMergedPRs(
   }
 
   return prs;
+}
+
+export function generateWebhookSecret(): string {
+  return randomBytes(32).toString("hex");
+}
+
+export async function registerWebhook(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  webhookUrl: string,
+  secret: string
+): Promise<number> {
+  const { data } = await octokit.repos.createWebhook({
+    owner,
+    repo,
+    config: {
+      url: webhookUrl,
+      content_type: "json",
+      secret,
+      insecure_ssl: "0",
+    },
+    events: ["pull_request"],
+    active: true,
+  });
+  return data.id;
+}
+
+export async function deleteWebhook(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  hookId: number
+): Promise<void> {
+  await octokit.repos.deleteWebhook({ owner, repo, hook_id: hookId });
 }
