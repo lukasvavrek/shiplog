@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { projects, changelogs } from "@/db/schema";
+import { projects, changelogs, users } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -36,6 +36,11 @@ export default async function PublicChangelogPage({
   });
 
   if (!project) notFound();
+
+  const owner = await db.query.users.findFirst({
+    where: eq(users.id, project.userId),
+  });
+  const showBranding = !owner || owner.plan === "free";
 
   const publishedChangelogs = await db.query.changelogs.findMany({
     where: and(
@@ -121,12 +126,14 @@ export default async function PublicChangelogPage({
         )}
       </main>
 
-      <footer className="border-t border-gray-100 py-6 text-center text-xs text-gray-400">
-        Powered by{" "}
-        <Link href="/" className="hover:text-gray-600">
-          ShipLog
-        </Link>
-      </footer>
+      {showBranding && (
+        <footer className="border-t border-gray-100 py-6 text-center text-xs text-gray-400">
+          Powered by{" "}
+          <Link href="/" className="hover:text-gray-600">
+            ShipLog
+          </Link>
+        </footer>
+      )}
     </div>
   );
 }

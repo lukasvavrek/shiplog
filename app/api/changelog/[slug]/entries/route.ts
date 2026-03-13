@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { projects, changelogs } from "@/db/schema";
+import { projects, changelogs, users } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -32,19 +32,25 @@ export async function GET(
     );
   }
 
-  const entries = await db.query.changelogs.findMany({
-    where: and(
-      eq(changelogs.projectId, project.id),
-      eq(changelogs.published, true)
-    ),
-    orderBy: [desc(changelogs.publishedAt)],
-    limit,
-  });
+  const [entries, owner] = await Promise.all([
+    db.query.changelogs.findMany({
+      where: and(
+        eq(changelogs.projectId, project.id),
+        eq(changelogs.published, true)
+      ),
+      orderBy: [desc(changelogs.publishedAt)],
+      limit,
+    }),
+    db.query.users.findFirst({ where: eq(users.id, project.userId) }),
+  ]);
+
+  const showBranding = !owner || owner.plan === "free";
 
   const data = {
     project: {
       name: project.name,
       slug: project.slug,
+      showBranding,
     },
     entries: entries.map((e) => ({
       id: e.id,

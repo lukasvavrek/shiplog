@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { projects, users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function GET(
   req: Request,
@@ -16,7 +19,19 @@ export async function GET(
     20
   );
 
-  const js = buildWidgetScript(appUrl, slug, theme, maxEntries);
+  // Determine branding: hide for Pro/Team owners
+  let showBranding = true;
+  const project = await db.query.projects.findFirst({
+    where: eq(projects.slug, slug),
+  });
+  if (project) {
+    const owner = await db.query.users.findFirst({
+      where: eq(users.id, project.userId),
+    });
+    showBranding = !owner || owner.plan === "free";
+  }
+
+  const js = buildWidgetScript(appUrl, slug, theme, maxEntries, showBranding);
 
   return new NextResponse(js, {
     headers: {
@@ -31,7 +46,8 @@ function buildWidgetScript(
   appUrl: string,
   slug: string,
   defaultTheme: string,
-  defaultMax: number
+  defaultMax: number,
+  showBranding: boolean
 ): string {
   return `(function () {
   var SCRIPT = document.currentScript;
@@ -131,15 +147,17 @@ function buildWidgetScript(
       inner.appendChild(list);
     }
 
-    var footer = document.createElement('div');
-    footer.className = 'sl-widget-footer';
-    var link = document.createElement('a');
-    link.href = '${appUrl}/${slug}';
-    link.target = '_blank';
-    link.rel = 'noopener';
-    link.textContent = 'Powered by ShipLog';
-    footer.appendChild(link);
-    inner.appendChild(footer);
+    if (${showBranding}) {
+      var footer = document.createElement('div');
+      footer.className = 'sl-widget-footer';
+      var link = document.createElement('a');
+      link.href = '${appUrl}/${slug}';
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = 'Powered by ShipLog';
+      footer.appendChild(link);
+      inner.appendChild(footer);
+    }
 
     var wrapper = document.createElement('div');
     wrapper.className = 'sl-widget';
