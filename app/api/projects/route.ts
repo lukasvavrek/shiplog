@@ -1,8 +1,10 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { projects } from "@/db/schema";
+import { projects, users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
+import { PLANS } from "@/lib/stripe";
 
 function parseGithubUrl(url: string): { owner: string; repo: string } | null {
   try {
@@ -32,6 +34,24 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "Invalid GitHub URL. Expected https://github.com/owner/repo" },
       { status: 400 }
+    );
+  }
+
+  // Enforce plan limits
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, session.user.id),
+  });
+  const plan = (user?.plan ?? "free") as keyof typeof PLANS;
+  const maxProjects = PLANS[plan].maxProjects;
+  const existing = await db.query.projects.findMany({
+    where: eq(projects.userId, session.user.id),
+  });
+  if (existing.length >= maxProjects) {
+    return NextResponse.json(
+      {
+        error: `Your ${plan} plan allows up to ${maxProjects} project(s). Upgrade to add more.`,
+      },
+      { status: 403 }
     );
   }
 

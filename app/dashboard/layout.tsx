@@ -19,6 +19,9 @@ export default async function DashboardLayout({
             ShipLog
           </Link>
           <div className="flex items-center gap-4">
+            <Link href="/dashboard/billing" className="text-sm text-gray-500 hover:text-gray-900">
+              Billing
+            </Link>
             <span className="text-sm text-gray-500">{session.user?.email}</span>
             <form
               action={async () => {
