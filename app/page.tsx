@@ -1,6 +1,11 @@
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth();
+  if (session) redirect("/dashboard");
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-white px-6">
       <div className="max-w-2xl text-center">
