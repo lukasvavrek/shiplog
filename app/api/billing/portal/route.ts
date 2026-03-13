@@ -6,6 +6,13 @@ import { stripe } from "@/lib/stripe";
 import { NextResponse } from "next/server";
 
 export async function POST() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json(
+      { error: "Billing not configured" },
+      { status: 503 }
+    );
+  }
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

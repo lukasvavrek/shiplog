@@ -11,6 +11,7 @@ export default async function BillingPage() {
   });
 
   const isPro = user?.plan === "pro";
+  const stripeEnabled = !!process.env.STRIPE_SECRET_KEY;
 
   return (
     <div className="max-w-lg">
@@ -43,11 +44,17 @@ export default async function BillingPage() {
               <li>✓ Unlimited changelog entries</li>
               <li>✓ Remove ShipLog branding</li>
             </ul>
-            <UpgradeButton />
+            {stripeEnabled ? (
+              <UpgradeButton />
+            ) : (
+              <p className="text-sm text-gray-400 italic">
+                Paid plans coming soon.
+              </p>
+            )}
           </div>
         )}
 
-        {isPro && <UpgradeButton isManage />}
+        {isPro && stripeEnabled && <UpgradeButton isManage />}
       </div>
     </div>
   );
