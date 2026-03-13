@@ -22,6 +22,54 @@ export interface PullRequest {
   labels: string[];
 }
 
+export interface Commit {
+  sha: string;
+  message: string;
+  author: string;
+  date: string;
+}
+
+export async function fetchCommits(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  since: Date,
+  until: Date
+): Promise<Commit[]> {
+  const commits: Commit[] = [];
+  let page = 1;
+
+  while (true) {
+    const { data } = await octokit.repos.listCommits({
+      owner,
+      repo,
+      since: since.toISOString(),
+      until: until.toISOString(),
+      per_page: 100,
+      page,
+    });
+
+    if (data.length === 0) break;
+
+    for (const c of data) {
+      const msg = c.commit.message.split("\n")[0].trim();
+      // Skip merge commits
+      if (msg.startsWith("Merge ")) continue;
+      commits.push({
+        sha: c.sha.slice(0, 7),
+        message: msg,
+        author: c.commit.author?.name ?? "Unknown",
+        date: c.commit.author?.date ?? "",
+      });
+    }
+
+    if (data.length < 100) break;
+    page++;
+  }
+
+  return commits;
+}
+
 export async function fetchMergedPRs(
   octokit: Octokit,
   owner: string,

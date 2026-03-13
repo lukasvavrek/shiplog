@@ -4,6 +4,7 @@ import { projects, changelogs } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import DeleteProjectButton from "./DeleteProjectButton";
 
 export default async function ProjectPage({
   params,
@@ -41,19 +42,22 @@ export default async function ProjectPage({
             {project.githubOwner}/{project.githubRepo}
           </p>
         </div>
-        <Link
-          href={`/dashboard/projects/${project.id}/generate`}
-          className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-        >
-          Generate changelog
-        </Link>
+        <div className="flex items-center gap-3">
+          <DeleteProjectButton projectId={project.id} />
+          <Link
+            href={`/dashboard/projects/${project.id}/generate`}
+            className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+          >
+            Generate changelog
+          </Link>
+        </div>
       </div>
 
       {projectChangelogs.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-200 bg-white p-12 text-center">
           <p className="text-gray-500">No changelogs yet.</p>
           <p className="mt-1 text-sm text-gray-400">
-            Generate your first changelog from merged PRs.
+            Generate your first changelog from merged PRs or commits.
           </p>
           <Link
             href={`/dashboard/projects/${project.id}/generate`}

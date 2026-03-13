@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { projects, changelogs } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { getGithubClient, fetchMergedPRs } from "@/lib/github";
+import { getGithubClient, fetchMergedPRs, fetchCommits } from "@/lib/github";
 import Anthropic from "@anthropic-ai/sdk";
 import { nanoid } from "nanoid";
 
@@ -57,27 +57,17 @@ export async function POST(
     new Date(until)
   );
 
-  if (prs.length === 0) {
-    return NextResponse.json(
-      { error: "No merged PRs found in this date range" },
-      { status: 400 }
-    );
-  }
+  let prompt: string;
 
-  const prList = prs
-    .map(
-      (pr) =>
-        `PR #${pr.number}: ${pr.title}${pr.labels.length ? ` [${pr.labels.join(", ")}]` : ""}${pr.body ? `\n${pr.body.slice(0, 500)}` : ""}`
-    )
-    .join("\n\n");
+  if (prs.length > 0) {
+    const prList = prs
+      .map(
+        (pr) =>
+          `PR #${pr.number}: ${pr.title}${pr.labels.length ? ` [${pr.labels.join(", ")}]` : ""}${pr.body ? `\n${pr.body.slice(0, 500)}` : ""}`
+      )
+      .join("\n\n");
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 2048,
-    messages: [
-      {
-        role: "user",
-        content: `You are writing a customer-facing changelog for ${project.githubOwner}/${project.githubRepo}.
+    prompt = `You are writing a customer-facing changelog for ${project.githubOwner}/${project.githubRepo}.
 
 Below are the merged pull requests from ${since} to ${until}. Convert them into a polished, user-friendly changelog in Markdown format.
 
@@ -91,9 +81,49 @@ Guidelines:
 PRs:
 ${prList}
 
-Output only the Markdown changelog content, no preamble.`,
-      },
-    ],
+Output only the Markdown changelog content, no preamble.`;
+  } else {
+    // Fallback: use commits when no PRs found (e.g. repos that commit directly to main)
+    const commits = await fetchCommits(
+      octokit,
+      project.githubOwner,
+      project.githubRepo,
+      new Date(since),
+      new Date(until)
+    );
+
+    if (commits.length === 0) {
+      return NextResponse.json(
+        { error: "No merged PRs or commits found in this date range" },
+        { status: 400 }
+      );
+    }
+
+    const commitList = commits
+      .map((c) => `${c.sha}: ${c.message}`)
+      .join("\n");
+
+    prompt = `You are writing a customer-facing changelog for ${project.githubOwner}/${project.githubRepo}.
+
+Below are git commits from ${since} to ${until}. Convert them into a polished, user-friendly changelog in Markdown format.
+
+Guidelines:
+- Organize entries into sections: ## Features, ## Improvements, ## Bug Fixes (only include sections that have content)
+- Each entry should be one short bullet point written for non-technical users
+- Focus on what changed and why it matters, not how it was implemented
+- Skip chore/build/infra commits that don't affect users
+- Be concise and clear
+
+Commits:
+${commitList}
+
+Output only the Markdown changelog content, no preamble.`;
+  }
+
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2048,
+    messages: [{ role: "user", content: prompt }],
   });
 
   const content =
