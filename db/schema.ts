@@ -56,6 +56,10 @@ export const projects = pgTable("projects", {
   description: text("description"),
   githubWebhookId: text("github_webhook_id"),
   githubWebhookSecret: text("github_webhook_secret"),
+  // Custom domain (Pro plan feature)
+  customDomain: text("custom_domain").unique(),
+  customDomainVerifiedAt: timestamp("custom_domain_verified_at", { mode: "date" }),
+  customDomainToken: text("custom_domain_token"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
