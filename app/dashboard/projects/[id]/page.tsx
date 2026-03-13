@@ -108,6 +108,14 @@ export default async function ProjectPage({
           <DeleteProjectButton projectId={project.id} />
           {isTeam && (
             <Link
+              href={`/dashboard/projects/${project.id}/analytics`}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Analytics
+            </Link>
+          )}
+          {isTeam && (
+            <Link
               href={`/dashboard/projects/${project.id}/settings`}
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >

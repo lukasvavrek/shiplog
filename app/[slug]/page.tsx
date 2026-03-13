@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import type { Metadata } from "next";
+import ViewTracker from "./ViewTracker";
 
 export async function generateMetadata({
   params,
@@ -50,6 +51,7 @@ export default async function PublicChangelogPage({
 
   return (
     <div className="min-h-screen bg-white">
+      <ViewTracker slug={slug} />
       <head>
         <link
           rel="alternate"

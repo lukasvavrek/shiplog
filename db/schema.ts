@@ -108,6 +108,18 @@ export const changelogReviews = pgTable("changelog_reviews", {
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
+// Page views for analytics (Team plan feature)
+export const pageViews = pgTable("page_views", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  changelogId: text("changelog_id").references(() => changelogs.id, { onDelete: "set null" }),
+  viewedAt: timestamp("viewed_at", { mode: "date" }).notNull().defaultNow(),
+  referrer: text("referrer"),
+  country: text("country"),
+});
+
 // Relations
 export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
   project: one(projects, { fields: [teamMembers.projectId], references: [projects.id] }),
@@ -126,4 +138,10 @@ export const changelogsRelations = relations(changelogs, ({ many }) => ({
 export const projectsRelations = relations(projects, ({ many }) => ({
   teamMembers: many(teamMembers),
   changelogs: many(changelogs),
+  pageViews: many(pageViews),
+}));
+
+export const pageViewsRelations = relations(pageViews, ({ one }) => ({
+  project: one(projects, { fields: [pageViews.projectId], references: [projects.id] }),
+  changelog: one(changelogs, { fields: [pageViews.changelogId], references: [changelogs.id] }),
 }));
