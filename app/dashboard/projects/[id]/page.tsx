@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { projects, changelogs } from "@/db/schema";
+import { projects, changelogs, users } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -14,9 +14,14 @@ export default async function ProjectPage({
   const { id } = await params;
   const session = await auth();
 
-  const project = await db.query.projects.findFirst({
-    where: and(eq(projects.id, id), eq(projects.userId, session!.user!.id!)),
-  });
+  const [project, user] = await Promise.all([
+    db.query.projects.findFirst({
+      where: and(eq(projects.id, id), eq(projects.userId, session!.user!.id!)),
+    }),
+    db.query.users.findFirst({
+      where: eq(users.id, session!.user!.id!),
+    }),
+  ]);
 
   if (!project) notFound();
 
@@ -25,8 +30,42 @@ export default async function ProjectPage({
     orderBy: (c, { desc }) => [desc(c.createdAt)],
   });
 
+  const isPro = user?.plan === "pro";
+  const draftCount = projectChangelogs.filter((c) => !c.published).length;
+  const hasWebhook = !!project.githubWebhookId;
+
   return (
     <div>
+      {isPro && draftCount > 0 && (
+        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          {draftCount === 1
+            ? "1 draft changelog is ready for review."
+            : `${draftCount} draft changelogs are ready for review.`}{" "}
+          Scroll down to publish.
+        </div>
+      )}
+
+      {!isPro && (
+        <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+          <span className="font-medium">Pro feature:</span> Auto-generate a
+          changelog draft every time a PR merges on GitHub.{" "}
+          <Link
+            href="/dashboard/billing"
+            className="font-medium text-gray-900 underline hover:text-gray-700"
+          >
+            Upgrade to Pro
+          </Link>
+        </div>
+      )}
+
+      {isPro && !hasWebhook && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          GitHub webhook not connected. Auto-generation on PR merge is
+          unavailable for this project. Delete and reconnect the repo to enable
+          it.
+        </div>
+      )}
+
       <div className="mb-6 flex items-center justify-between">
         <div>
           <nav className="mb-1 text-sm text-gray-500">
