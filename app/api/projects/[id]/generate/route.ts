@@ -65,6 +65,29 @@ export async function POST(
     );
   }
 
+  // Validate date format (ISO 8601: YYYY-MM-DD or full datetime)
+  const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T[\d:.Z+-]+)?$/;
+  if (!ISO_DATE_RE.test(since) || !ISO_DATE_RE.test(until)) {
+    return NextResponse.json(
+      { error: "since and until must be valid ISO 8601 date strings (e.g. 2024-01-01)" },
+      { status: 400 }
+    );
+  }
+  const sinceDate = new Date(since);
+  const untilDate = new Date(until);
+  if (isNaN(sinceDate.getTime()) || isNaN(untilDate.getTime())) {
+    return NextResponse.json(
+      { error: "since and until must be valid dates" },
+      { status: 400 }
+    );
+  }
+  if (sinceDate > untilDate) {
+    return NextResponse.json(
+      { error: "since must be before until" },
+      { status: 400 }
+    );
+  }
+
   const octokit = await getGithubClient(session.user.id);
   if (!octokit) {
     return NextResponse.json(
@@ -79,8 +102,8 @@ export async function POST(
       octokit,
       project.githubOwner,
       project.githubRepo,
-      new Date(since),
-      new Date(until)
+      sinceDate,
+      untilDate
     );
   } catch (err: unknown) {
     if (
@@ -138,8 +161,8 @@ Output only the Markdown changelog content. No preamble, no intro paragraph.`;
         octokit,
         project.githubOwner,
         project.githubRepo,
-        new Date(since),
-        new Date(until)
+        sinceDate,
+        untilDate
       );
     } catch (err: unknown) {
       if (
@@ -203,7 +226,7 @@ Output only the Markdown changelog content. No preamble, no intro paragraph.`;
 
   const changelogTitle =
     title ||
-    `${project.name} changelog — ${new Date(since).toLocaleDateString()} to ${new Date(until).toLocaleDateString()}`;
+    `${project.name} changelog — ${sinceDate.toLocaleDateString()} to ${untilDate.toLocaleDateString()}`;
 
   const [changelog] = await db
     .insert(changelogs)
@@ -213,8 +236,8 @@ Output only the Markdown changelog content. No preamble, no intro paragraph.`;
       title: changelogTitle,
       content,
       published: false,
-      dateFrom: new Date(since),
-      dateTo: new Date(until),
+      dateFrom: sinceDate,
+      dateTo: untilDate,
     })
     .returning();
 
