@@ -90,21 +90,22 @@ export async function POST(
       )
       .join("\n\n");
 
-    prompt = `You are writing a customer-facing changelog for ${project.githubOwner}/${project.githubRepo}.
+    prompt = `You are a product manager writing a customer-facing changelog for ${project.githubOwner}/${project.githubRepo}.
 
-Below are the merged pull requests from ${since} to ${until}. Convert them into a polished, user-friendly changelog in Markdown format.
+Below are merged pull requests from ${since} to ${until}. Transform them into a polished, professional changelog that users will actually want to read.
 
-Guidelines:
-- Organize entries into sections: ## Features, ## Improvements, ## Bug Fixes (only include sections that have content)
-- Each entry should be one short bullet point written for non-technical users
-- Focus on what changed and why it matters, not how it was implemented
-- Skip internal/infra PRs that don't affect users (e.g., "bump dependencies", "update CI")
-- Be concise and clear
+Rules:
+- Organize into sections: ## New Features, ## Improvements, ## Bug Fixes — only include sections with content
+- Write each entry as a single bullet point from the user's perspective: what they can now do, what got better, or what got fixed
+- Use active, benefit-oriented language (e.g. "You can now export reports as CSV" not "Added CSV export endpoint")
+- Skip or combine trivial PRs (typos, dependency bumps, internal tooling, CI config)
+- If a PR title/description is technical jargon, translate it into plain English
+- Each bullet should be 1 sentence, punchy and clear
 
 PRs:
 ${prList}
 
-Output only the Markdown changelog content, no preamble.`;
+Output only the Markdown changelog content. No preamble, no intro paragraph.`;
   } else {
     // Fallback: use commits when no PRs found (e.g. repos that commit directly to main)
     let commits;
@@ -149,21 +150,22 @@ Output only the Markdown changelog content, no preamble.`;
       .map((c) => `${c.sha}: ${c.message}`)
       .join("\n");
 
-    prompt = `You are writing a customer-facing changelog for ${project.githubOwner}/${project.githubRepo}.
+    prompt = `You are a product manager writing a customer-facing changelog for ${project.githubOwner}/${project.githubRepo}.
 
-Below are git commits from ${since} to ${until}. Convert them into a polished, user-friendly changelog in Markdown format.
+Below are git commits from ${since} to ${until}. Transform them into a polished, professional changelog that users will actually want to read.
 
-Guidelines:
-- Organize entries into sections: ## Features, ## Improvements, ## Bug Fixes (only include sections that have content)
-- Each entry should be one short bullet point written for non-technical users
-- Focus on what changed and why it matters, not how it was implemented
-- Skip chore/build/infra commits that don't affect users
-- Be concise and clear
+Rules:
+- Organize into sections: ## New Features, ## Improvements, ## Bug Fixes — only include sections with content
+- Write each entry as a single bullet point from the user's perspective: what they can now do, what got better, or what got fixed
+- Use active, benefit-oriented language (e.g. "You can now export reports as CSV" not "Added CSV export")
+- Skip chore/build/infra commits that don't affect users (e.g. "fix CI", "bump deps", "update lockfile")
+- Translate technical commit messages into plain English
+- Each bullet should be 1 sentence, punchy and clear
 
 Commits:
 ${commitList}
 
-Output only the Markdown changelog content, no preamble.`;
+Output only the Markdown changelog content. No preamble, no intro paragraph.`;
   }
 
   const message = await anthropic.messages.create({

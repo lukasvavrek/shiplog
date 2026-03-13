@@ -101,6 +101,15 @@ export async function fetchMergedPRs(
         return prs;
       }
       if (mergedAt <= until) {
+        // Skip bot PRs (dependabot, renovate, etc.)
+        const authorLogin = pr.user?.login ?? "";
+        const isBotAuthor =
+          pr.user?.type === "Bot" ||
+          authorLogin.includes("dependabot") ||
+          authorLogin.includes("renovate") ||
+          authorLogin.endsWith("[bot]");
+        if (isBotAuthor) continue;
+
         prs.push({
           number: pr.number,
           title: pr.title,

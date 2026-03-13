@@ -25,6 +25,20 @@ export async function POST(req: Request) {
   }
 
   switch (event.type) {
+    case "checkout.session.completed": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      if (session.mode === "subscription" && session.customer) {
+        const customerId =
+          typeof session.customer === "string"
+            ? session.customer
+            : session.customer.id;
+        await db
+          .update(users)
+          .set({ plan: "pro" })
+          .where(eq(users.stripeCustomerId, customerId));
+      }
+      break;
+    }
     case "customer.subscription.created":
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription;
