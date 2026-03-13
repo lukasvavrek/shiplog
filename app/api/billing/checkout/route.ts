@@ -4,6 +4,10 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { stripe } from "@/lib/stripe";
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+// 5 requests per user per 10 minutes
+const CHECKOUT_RATE_LIMIT = { limit: 5, windowMs: 10 * 60_000 };
 
 export async function POST() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -16,6 +20,26 @@ export async function POST() {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(
+    `billing-checkout:${session.user.id}`,
+    CHECKOUT_RATE_LIMIT.limit,
+    CHECKOUT_RATE_LIMIT.windowMs
+  );
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before trying again." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+          "X-RateLimit-Limit": String(CHECKOUT_RATE_LIMIT.limit),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(rl.resetAt),
+        },
+      }
+    );
   }
 
   const user = await db.query.users.findFirst({

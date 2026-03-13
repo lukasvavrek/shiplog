@@ -6,8 +6,12 @@ import { NextResponse } from "next/server";
 import { getGithubClient, fetchMergedPRs, fetchCommits } from "@/lib/github";
 import Anthropic from "@anthropic-ai/sdk";
 import { nanoid } from "nanoid";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const anthropic = new Anthropic();
+
+// 10 requests per user per minute
+const GENERATE_RATE_LIMIT = { limit: 10, windowMs: 60_000 };
 
 export async function POST(
   req: Request,
@@ -17,6 +21,26 @@ export async function POST(
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(
+    `generate:${session.user.id}`,
+    GENERATE_RATE_LIMIT.limit,
+    GENERATE_RATE_LIMIT.windowMs
+  );
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before generating again." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+          "X-RateLimit-Limit": String(GENERATE_RATE_LIMIT.limit),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(rl.resetAt),
+        },
+      }
+    );
   }
 
   const project = await db.query.projects.findFirst({
