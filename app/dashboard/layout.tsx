@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "@/lib/auth";
+import ReconnectGitHub from "./ReconnectGitHub";
 
 export default async function DashboardLayout({
   children,
@@ -22,6 +23,7 @@ export default async function DashboardLayout({
             <Link href="/dashboard/billing" className="text-sm text-gray-500 hover:text-gray-900">
               Billing
             </Link>
+            <ReconnectGitHub />
             <span className="text-sm text-gray-500">{session.user?.email}</span>
             <form
               action={async () => {

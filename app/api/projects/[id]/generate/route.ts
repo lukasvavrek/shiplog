@@ -49,13 +49,36 @@ export async function POST(
     );
   }
 
-  const prs = await fetchMergedPRs(
-    octokit,
-    project.githubOwner,
-    project.githubRepo,
-    new Date(since),
-    new Date(until)
-  );
+  let prs;
+  try {
+    prs = await fetchMergedPRs(
+      octokit,
+      project.githubOwner,
+      project.githubRepo,
+      new Date(since),
+      new Date(until)
+    );
+  } catch (err: unknown) {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "status" in err &&
+      (err as { status: number }).status === 403 &&
+      "message" in err &&
+      typeof (err as { message: string }).message === "string" &&
+      (err as { message: string }).message.includes("OAuth App access restrictions")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This organization has restricted OAuth App access. Re-authorize your GitHub connection to grant access.",
+          code: "github_org_access_required",
+        },
+        { status: 403 }
+      );
+    }
+    throw err;
+  }
 
   let prompt: string;
 
@@ -84,13 +107,36 @@ ${prList}
 Output only the Markdown changelog content, no preamble.`;
   } else {
     // Fallback: use commits when no PRs found (e.g. repos that commit directly to main)
-    const commits = await fetchCommits(
-      octokit,
-      project.githubOwner,
-      project.githubRepo,
-      new Date(since),
-      new Date(until)
-    );
+    let commits;
+    try {
+      commits = await fetchCommits(
+        octokit,
+        project.githubOwner,
+        project.githubRepo,
+        new Date(since),
+        new Date(until)
+      );
+    } catch (err: unknown) {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "status" in err &&
+        (err as { status: number }).status === 403 &&
+        "message" in err &&
+        typeof (err as { message: string }).message === "string" &&
+        (err as { message: string }).message.includes("OAuth App access restrictions")
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "This organization has restricted OAuth App access. Re-authorize your GitHub connection to grant access.",
+            code: "github_org_access_required",
+          },
+          { status: 403 }
+        );
+      }
+      throw err;
+    }
 
     if (commits.length === 0) {
       return NextResponse.json(

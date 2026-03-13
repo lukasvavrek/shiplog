@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 function defaultDates() {
   const until = new Date();
@@ -22,10 +23,12 @@ export default function GenerateChangelogPage() {
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setErrorCode(null);
     setLoading(true);
 
     try {
@@ -35,7 +38,10 @@ export default function GenerateChangelogPage() {
         body: JSON.stringify({ since, until, title: title || undefined }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Generation failed");
+      if (!res.ok) {
+        setErrorCode(data.code ?? null);
+        throw new Error(data.error || "Generation failed");
+      }
       router.push(`/dashboard/projects/${params.id}/changelogs/${data.id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -105,7 +111,22 @@ export default function GenerateChangelogPage() {
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
           />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && errorCode === "github_org_access_required" ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-800">{error}</p>
+            <button
+              type="button"
+              onClick={() =>
+                signIn("github", { callbackUrl: window.location.href })
+              }
+              className="mt-3 rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
+            >
+              Re-authorize GitHub
+            </button>
+          </div>
+        ) : (
+          error && <p className="text-sm text-red-600">{error}</p>
+        )}
         <button
           type="submit"
           disabled={loading}
