@@ -117,6 +117,7 @@ export default function GenerateChangelogPage() {
             <button
               type="button"
               onClick={async () => {
+                await fetch("/api/auth/revoke-github", { method: "POST" });
                 await signOut({ redirect: false });
                 signIn("github", { callbackUrl: window.location.href });
               }}

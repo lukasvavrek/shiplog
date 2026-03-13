@@ -4,8 +4,9 @@ import { signIn, signOut } from "next-auth/react";
 
 export default function ReconnectGitHub() {
   async function handleReconnect() {
-    // Sign out first so GitHub shows the full authorization page (including
-    // org access section) instead of auto-approving the existing session.
+    // Revoke the GitHub token server-side so GitHub is forced to show the
+    // full authorization page (including org access) on the next OAuth flow.
+    await fetch("/api/auth/revoke-github", { method: "POST" });
     await signOut({ redirect: false });
     signIn("github", { callbackUrl: "/dashboard" });
   }
