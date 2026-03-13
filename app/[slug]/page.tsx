@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { projects, changelogs } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 
 export default async function PublicChangelogPage({
@@ -70,9 +71,9 @@ export default async function PublicChangelogPage({
 
       <footer className="border-t border-gray-100 py-6 text-center text-xs text-gray-400">
         Powered by{" "}
-        <a href="/" className="hover:text-gray-600">
+        <Link href="/" className="hover:text-gray-600">
           ShipLog
-        </a>
+        </Link>
       </footer>
     </div>
   );
