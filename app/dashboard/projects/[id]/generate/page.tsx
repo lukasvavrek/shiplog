@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 
 function defaultDates() {
   const until = new Date();
@@ -116,9 +116,10 @@ export default function GenerateChangelogPage() {
             <p className="text-sm text-amber-800">{error}</p>
             <button
               type="button"
-              onClick={() =>
-                signIn("github", { callbackUrl: window.location.href })
-              }
+              onClick={async () => {
+                await signOut({ redirect: false });
+                signIn("github", { callbackUrl: window.location.href });
+              }}
               className="mt-3 rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
             >
               Re-authorize GitHub
