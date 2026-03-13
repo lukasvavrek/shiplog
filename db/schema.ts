@@ -1,4 +1,5 @@
 import { boolean, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -70,6 +71,59 @@ export const changelogs = pgTable("changelogs", {
   publishedAt: timestamp("published_at", { mode: "date" }),
   dateFrom: timestamp("date_from", { mode: "date" }),
   dateTo: timestamp("date_to", { mode: "date" }),
+  // Review workflow: draft → in_review → approved → published
+  reviewStatus: text("review_status").notNull().default("draft"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
+
+// Team members for a project (Team plan feature)
+export const teamMembers = pgTable("team_members", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  // userId is set once the invite is accepted; null for pending invites
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role").notNull().default("reviewer"), // 'reviewer' | 'owner'
+  inviteToken: text("invite_token"),
+  inviteAcceptedAt: timestamp("invite_accepted_at", { mode: "date" }),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+// Reviews submitted on changelogs (Team plan feature)
+export const changelogReviews = pgTable("changelog_reviews", {
+  id: text("id").primaryKey(),
+  changelogId: text("changelog_id")
+    .notNull()
+    .references(() => changelogs.id, { onDelete: "cascade" }),
+  reviewerId: text("reviewer_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("pending"), // 'pending' | 'approved' | 'changes_requested'
+  comment: text("comment"),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+// Relations
+export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
+  project: one(projects, { fields: [teamMembers.projectId], references: [projects.id] }),
+  user: one(users, { fields: [teamMembers.userId], references: [users.id] }),
+}));
+
+export const changelogReviewsRelations = relations(changelogReviews, ({ one }) => ({
+  changelog: one(changelogs, { fields: [changelogReviews.changelogId], references: [changelogs.id] }),
+  reviewer: one(users, { fields: [changelogReviews.reviewerId], references: [users.id] }),
+}));
+
+export const changelogsRelations = relations(changelogs, ({ many }) => ({
+  reviews: many(changelogReviews),
+}));
+
+export const projectsRelations = relations(projects, ({ many }) => ({
+  teamMembers: many(teamMembers),
+  changelogs: many(changelogs),
+}));

@@ -1,9 +1,15 @@
-import { stripe } from "@/lib/stripe";
+import { stripe, PLANS } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+
+function planFromPriceId(priceId: string | null): "pro" | "team" | "free" {
+  if (priceId === PLANS.team.stripePriceId) return "team";
+  if (priceId === PLANS.pro.stripePriceId) return "pro";
+  return "free";
+}
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -46,8 +52,9 @@ export async function POST(req: Request) {
         typeof subscription.customer === "string"
           ? subscription.customer
           : subscription.customer.id;
+      const priceId = subscription.items.data[0]?.price?.id ?? null;
       const plan =
-        subscription.status === "active" ? "pro" : "free";
+        subscription.status === "active" ? planFromPriceId(priceId) : "free";
 
       await db
         .update(users)

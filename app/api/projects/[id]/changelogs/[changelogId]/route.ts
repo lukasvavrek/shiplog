@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { projects, changelogs } from "@/db/schema";
+import { projects, changelogs, users } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -32,20 +32,48 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const existing = await getChangelogForUser(session.user.id, id, changelogId);
+  const [existing, user] = await Promise.all([
+    getChangelogForUser(session.user.id, id, changelogId),
+    db.query.users.findFirst({ where: eq(users.id, session.user.id) }),
+  ]);
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const isTeamPlan = user?.plan === "team";
   const body = await req.json();
   const updates: Partial<typeof existing> = {};
+
   if (typeof body.title === "string") updates.title = body.title;
   if (typeof body.content === "string") updates.content = body.content;
-  if (typeof body.published === "boolean") {
-    updates.published = body.published;
-    if (body.published && !existing.publishedAt) {
+
+  // Handle review status transition: request review (draft → in_review)
+  if (body.requestReview === true && isTeamPlan) {
+    if (existing.reviewStatus !== "draft") {
+      return NextResponse.json(
+        { error: "Changelog must be in draft to request review" },
+        { status: 400 }
+      );
+    }
+    updates.reviewStatus = "in_review";
+  }
+
+  // Handle publishing
+  if (typeof body.published === "boolean" && body.published) {
+    // Team plan: require approval before publishing
+    if (isTeamPlan && existing.reviewStatus !== "approved") {
+      return NextResponse.json(
+        { error: "Changelog must be approved before publishing on Team plan" },
+        { status: 400 }
+      );
+    }
+    updates.published = true;
+    updates.reviewStatus = "published";
+    if (!existing.publishedAt) {
       updates.publishedAt = new Date();
     }
+  } else if (typeof body.published === "boolean" && !body.published) {
+    updates.published = false;
   }
 
   const [updated] = await db

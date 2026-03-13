@@ -10,6 +10,7 @@ export const PLANS = {
     price: 0,
     maxProjects: 1,
     maxEntriesPerMonth: 50,
+    teamReview: false,
   },
   pro: {
     name: "Pro",
@@ -17,6 +18,15 @@ export const PLANS = {
     maxProjects: 5,
     maxEntriesPerMonth: Infinity,
     stripePriceId: process.env.STRIPE_PRO_PRICE_ID,
+    teamReview: false,
+  },
+  team: {
+    name: "Team",
+    price: 7900, // cents
+    maxProjects: 20,
+    maxEntriesPerMonth: Infinity,
+    stripePriceId: process.env.STRIPE_TEAM_PRICE_ID,
+    teamReview: true,
   },
 } as const;
 

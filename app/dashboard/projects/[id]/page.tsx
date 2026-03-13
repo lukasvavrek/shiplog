@@ -30,13 +30,23 @@ export default async function ProjectPage({
     orderBy: (c, { desc }) => [desc(c.createdAt)],
   });
 
-  const isPro = user?.plan === "pro";
+  const isPro = user?.plan === "pro" || user?.plan === "team";
+  const isTeam = user?.plan === "team";
   const draftCount = projectChangelogs.filter((c) => !c.published).length;
+  const inReviewCount = projectChangelogs.filter((c) => c.reviewStatus === "in_review").length;
   const hasWebhook = !!project.githubWebhookId;
 
   return (
     <div>
-      {isPro && draftCount > 0 && (
+      {isTeam && inReviewCount > 0 && (
+        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          {inReviewCount === 1
+            ? "1 changelog is awaiting reviewer approval."
+            : `${inReviewCount} changelogs are awaiting reviewer approval.`}
+        </div>
+      )}
+
+      {isPro && !isTeam && draftCount > 0 && (
         <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           {draftCount === 1
             ? "1 draft changelog is ready for review."
@@ -54,6 +64,19 @@ export default async function ProjectPage({
             className="font-medium text-gray-900 underline hover:text-gray-700"
           >
             Upgrade to Pro
+          </Link>
+        </div>
+      )}
+
+      {isPro && !isTeam && (
+        <div className="mb-6 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-800">
+          <span className="font-medium">Team feature:</span> Invite reviewers to
+          approve changelogs before publishing.{" "}
+          <Link
+            href="/dashboard/billing"
+            className="font-medium text-purple-900 underline hover:text-purple-700"
+          >
+            Upgrade to Team
           </Link>
         </div>
       )}
@@ -83,6 +106,14 @@ export default async function ProjectPage({
         </div>
         <div className="flex items-center gap-3">
           <DeleteProjectButton projectId={project.id} />
+          {isTeam && (
+            <Link
+              href={`/dashboard/projects/${project.id}/settings`}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Team settings
+            </Link>
+          )}
           <Link
             href={`/dashboard/projects/${project.id}/generate`}
             className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
@@ -116,7 +147,13 @@ export default async function ProjectPage({
               <div>
                 <h2 className="font-medium text-gray-900">{changelog.title}</h2>
                 <p className="mt-0.5 text-sm text-gray-500">
-                  {changelog.published ? "Published" : "Draft"}
+                  {changelog.published
+                    ? "Published"
+                    : changelog.reviewStatus === "in_review"
+                    ? "In Review"
+                    : changelog.reviewStatus === "approved"
+                    ? "Approved"
+                    : "Draft"}
                 </p>
               </div>
               <span className="text-sm text-gray-400">
